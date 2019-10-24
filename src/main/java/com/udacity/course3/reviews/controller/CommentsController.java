@@ -14,10 +14,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.udacity.course3.reviews.ReviewService;
 import com.udacity.course3.reviews.entity.Comment;
 import com.udacity.course3.reviews.entity.Review;
+import com.udacity.course3.reviews.entity.ReviewDocument;
 import com.udacity.course3.reviews.exceptions.ReviewNotFoundException;
 import com.udacity.course3.reviews.repository.CommentRepository;
+import com.udacity.course3.reviews.repository.ReviewMongoRepository;
 import com.udacity.course3.reviews.repository.ReviewRepository;
 
 /**
@@ -28,10 +31,16 @@ import com.udacity.course3.reviews.repository.ReviewRepository;
 public class CommentsController {
 
 	@Autowired
-	ReviewRepository reviewRepository;;
+	ReviewRepository reviewRepository;
 
 	@Autowired
 	CommentRepository commentRepository;
+	
+	@Autowired
+	ReviewMongoRepository reviewMongoRepository;
+	
+	@Autowired
+	ReviewService reviewService;
 
 	@RequestMapping(value = "/reviews/{reviewId}", method = RequestMethod.POST)
 	public ResponseEntity<?> createCommentForReview(@PathVariable("reviewId") Integer reviewId,
@@ -40,6 +49,8 @@ public class CommentsController {
 		Review review = optionalReview.orElseThrow(ReviewNotFoundException::new);
 		comment.setReview(review);
 		Comment createdComment = commentRepository.save(comment);
+		ReviewDocument  reviewDocument = reviewService.addCommentToReviewDocument(review, createdComment);
+		reviewMongoRepository.save(reviewDocument);
 		return new ResponseEntity<Comment>(createdComment, HttpStatus.CREATED);
 	}
 

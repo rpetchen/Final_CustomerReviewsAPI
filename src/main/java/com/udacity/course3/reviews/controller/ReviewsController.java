@@ -14,10 +14,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.udacity.course3.reviews.ReviewService;
 import com.udacity.course3.reviews.entity.Product;
 import com.udacity.course3.reviews.entity.Review;
+import com.udacity.course3.reviews.entity.ReviewDocument;
 import com.udacity.course3.reviews.exceptions.ProductNotFoundException;
 import com.udacity.course3.reviews.repository.ProductRepository;
+import com.udacity.course3.reviews.repository.ReviewMongoRepository;
 import com.udacity.course3.reviews.repository.ReviewRepository;
 
 /**
@@ -28,10 +31,15 @@ public class ReviewsController {
 
 	@Autowired
 	ProductRepository productRepository;
-	
+
+	@Autowired
+	ReviewMongoRepository reviewMongoRepository;
 
 	@Autowired
 	ReviewRepository reviewRepository;
+
+	@Autowired
+	ReviewService reviewService;
 
 	/**
 	 * Creates a review for a product.
@@ -47,9 +55,11 @@ public class ReviewsController {
 	public ResponseEntity<?> createReviewForProduct(@Valid @RequestBody Review review,
 			@PathVariable("productId") Integer productId) {
 		Optional<Product> optionalProduct = productRepository.findById(productId);
-    	Product product = optionalProduct.orElseThrow(ProductNotFoundException::new);
+		Product product = optionalProduct.orElseThrow(ProductNotFoundException::new);
 		review.setProduct(product);
 		Review createdReview = reviewRepository.save(review);
+		ReviewDocument reviewDocument = reviewService.ReviewEntityToDocument(createdReview);
+		reviewMongoRepository.save(reviewDocument);
 		return new ResponseEntity<Review>(createdReview, HttpStatus.CREATED);
 
 	}
@@ -62,7 +72,10 @@ public class ReviewsController {
 	 */
 	@RequestMapping(value = "/reviews/products/{productId}", method = RequestMethod.GET)
 	public ResponseEntity<List<?>> listReviewsForProduct(@PathVariable("productId") Integer productId) {
-		List<Review> reviews = reviewRepository.findReviewsByProductId(productId);
+		Optional<Product> optionalProduct = productRepository.findById(productId);
+		Product product = optionalProduct.orElseThrow(ProductNotFoundException::new);
+		List<Integer> reviewIDsFromProduct = reviewService.getReviewIDsFromProduct(product);
+		List<ReviewDocument> reviews = reviewMongoRepository.findBy_idIn(reviewIDsFromProduct);
 		return new ResponseEntity<List<?>>(reviews, HttpStatus.OK);
 	}
 }
